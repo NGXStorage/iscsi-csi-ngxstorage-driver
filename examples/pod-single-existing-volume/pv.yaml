@@ -1,0 +1,17 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: volume-pv-01
+  annotations:
+    pv.kubernetes.io/provisioned-by: iscsi.csi.ngxstorage.com
+spec:
+  storageClassName: iscsi-csi-ngxstorage-class
+  persistentVolumeReclaimPolicy: Delete
+  capacity:
+    storage: 5Gi
+  accessModes:
+  - ReadWriteOnce
+  csi:
+    driver: iscsi.csi.ngxstorage.com
+    volumeHandle: iscsi.ngxstorage.[ALREADYCREATEDLUNNAME] # replace with your volume name
+    fsType: noformat # noformat is for already formatted existing volume on storage array

@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: iscsi-csi-ngxstorage-class
+provisioner: iscsi.csi.ngxstorage.com
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  blockSize: "16k" # 512b, 1k, 2k, 4k, 8k, 16k, 32k, 64k, 128k
+  ioOptimization: "sequential" # sequential, transactional
+  qosPriorty: "64" # 4, 8, 16, 32, 64, 128
+  thinProvision: "on" # on, off
+  compression: "off" # on, off
+  deduplication: "off" # on, off
+  fsType: "ext4" # ext4, ext3, xfs for only pvc filesystem

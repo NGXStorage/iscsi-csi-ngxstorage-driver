@@ -1,0 +1,161 @@
+apiVersion: "apps/v1"
+kind: "DaemonSet"
+metadata:
+  name: "iscsi-csi-ngxstorage-node"
+  labels:
+    app: "iscsi-csi-ngxstorage"
+spec:
+  selector:
+    matchLabels:
+      name: "iscsi-csi-ngxstorage"
+      component: "node"
+  template:
+    metadata:
+      labels:
+        name: "iscsi-csi-ngxstorage"
+        component: "node"
+    spec:
+      serviceAccountName: "iscsi-csi-ngxstorage-service-account"
+      securityContext: {}
+      nodeSelector:
+        kubernetes.io/os: "linux"
+      hostNetwork: true
+      containers:
+      - name: "csi-driver-registrar"
+        image: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0"
+        imagePullPolicy: "Always"
+        args:
+        - "--csi-address=$(CSI_ENDPOINT_PATH)"
+        - "--kubelet-registration-path=$(CSI_REGISTRATION_PATH)"
+        - "--timeout=600s"
+        - "--v=5"
+        env:
+        - name: "CSI_ENDPOINT_PATH"
+          value: "/iscsi-csi-ngxstorage-driver/iscsi-csi-ngxstorage.sock"
+        - name: "CSI_REGISTRATION_PATH"
+          value: "/var/lib/kubelet/plugins/iscsi.csi.ngxstorage.com/iscsi-csi-ngxstorage.sock"
+        - name: "KUBE_NODE_NAME"
+          valueFrom:
+            fieldRef:
+              apiVersion: "v1"
+              fieldPath: "spec.nodeName"
+        volumeMounts:
+        - name: "plugin-dir"
+          mountPath: "/iscsi-csi-ngxstorage-driver"
+        - name: "registration-dir"
+          mountPath: "/registration"
+        ports:
+        livenessProbe:
+          exec:
+            command:
+            - /csi-node-driver-registrar
+            - --kubelet-registration-path=$(CSI_REGISTRATION_PATH)
+            - --mode=kubelet-registration-probe
+          initialDelaySeconds: 30
+          timeoutSeconds: 3
+          periodSeconds: 2
+          failureThreshold: 5
+      - name: "csi-liveness-probe"
+        image: "registry.k8s.io/sig-storage/livenessprobe:v2.10.0"
+        imagePullPolicy: "Always"
+        args:
+        - "--csi-address=/iscsi-csi-ngxstorage-driver/iscsi-csi-ngxstorage.sock"
+        - "--probe-timeout=3s"
+        - "--health-port=9801"
+        - "--v=5"
+        volumeMounts:
+        - name: "plugin-dir"
+          mountPath: "/iscsi-csi-ngxstorage-driver"
+        resources: {}
+      - name: "iscsi-csi-ngxstorage-node"
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
+        image: "ngxstorage/iscsi-csi-ngxstorage:latest"
+        imagePullPolicy: "Always"
+        resources: {}
+        args:
+        - "--endpoint=$(CSI_ENDPOINT)"
+        - "--login=$(STORAGE_USERNAMES):$(STORAGE_PASSWORDS)"
+        - "--ip=$(STORAGE_IPS)"
+        - "--pool-name=$(STORAGE_POOLNAME)"
+        - "--portal-group=$(STORAGE_PORTALGRP)"
+        - "--nodeid=$(KUBE_NODE_NAME)"
+        - "--log=1"
+        env:
+        - name: "CSI_ENDPOINT"
+          value: "unix:///csi-driver/iscsi-csi-ngxstorage.sock"
+        - name: "STORAGE_USERNAMES"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: usernames
+        - name: "STORAGE_PASSWORDS"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: passwords
+        - name: "STORAGE_IPS"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: ips
+        - name: "STORAGE_POOLNAME"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: poolName
+        - name: "STORAGE_PORTALGRP"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: portalGroupName
+        - name: "KUBE_NODE_NAME"
+          valueFrom:
+            fieldRef:
+              apiVersion: "v1"
+              fieldPath: "spec.nodeName"
+        volumeMounts:
+        - name: "plugin-dir"
+          mountPath: "/csi-driver"
+        - name: "kubelet-dir"
+          mountPath: "/var/lib/kubelet"
+          mountPropagation: "Bidirectional"
+        - name: "host-dev"
+          mountPath: "/dev"
+        - name: "host-root"
+          mountPath: "/host"
+          mountPropagation: "HostToContainer"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - ps aux | grep -v grep | grep iscsi-csi-ngxstorage.sock
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 2
+          failureThreshold: 5
+      volumes:
+      - name: "plugin-dir"
+        hostPath:
+          path: "/var/lib/kubelet/plugins/iscsi.csi.ngxstorage.com/"
+          type: "DirectoryOrCreate"
+      - name: "registration-dir"
+        hostPath:
+          path: "/var/lib/kubelet/plugins_registry/"
+          type: "DirectoryOrCreate"
+      - name: "kubelet-dir"
+        hostPath:
+          path: "/var/lib/kubelet"
+          type: "Directory"
+      - name: "host-dev"
+        hostPath:
+          path: "/dev"
+          type: "Directory"
+      - name: "host-root"
+        hostPath:
+          path: "/"
+          type: "Directory"

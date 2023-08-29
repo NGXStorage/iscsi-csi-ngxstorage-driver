@@ -1,0 +1,194 @@
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "iscsi-csi-ngxstorage-controller"
+  labels:
+    app: "iscsi-csi-ngxstorage"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "iscsi-csi-ngxstorage"
+      component: "controller"
+  template:
+    metadata:
+      labels:
+        app: "iscsi-csi-ngxstorage"
+        component: "controller"
+    spec:
+      serviceAccountName: "iscsi-csi-ngxstorage-service-account"
+      securityContext: {}
+      nodeSelector:
+        kubernetes.io/os: "linux"
+      containers:
+      - name: "csi-provisioner"
+        image: "registry.k8s.io/sig-storage/csi-provisioner:v3.5.0"
+        imagePullPolicy: "Always"
+        resources: {}
+        args:
+        - "--csi-address=$(CSI_ENDPOINT)"
+        - "--leader-election"
+        - "--http-endpoint=:9806"
+        - "--timeout=60s"
+        - "--v=5"
+        env:
+        - name: "CSI_ENDPOINT"
+          value: "/var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
+        volumeMounts:
+        - name: domain-socket
+          mountPath: /var/lib/csi/sockets/pluginproxy
+        ports:
+        - name: "http-endpoint"
+          containerPort: 9806
+          protocol: "TCP"
+        livenessProbe:
+          httpGet:
+            path: "/healthz/leader-election"
+            port: "http-endpoint"
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 2
+          failureThreshold: 5
+      - name: "csi-attacher"
+        image: "registry.k8s.io/sig-storage/csi-attacher:v4.3.0"
+        imagePullPolicy: "Always"
+        resources: {}
+        args:
+        - "--csi-address=$(CSI_ENDPOINT)"
+        - "--leader-election"
+        - "--http-endpoint=:9807"
+        - "--timeout=600s"
+        - "--v=5"
+        env:
+        - name: MY_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: "CSI_ENDPOINT"
+          value: "/var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
+        volumeMounts:
+        - name: "domain-socket"
+          mountPath: "/var/lib/csi/sockets/pluginproxy"
+        ports:
+        - name: "http-endpoint"
+          containerPort: 9807
+          protocol: "TCP"
+        livenessProbe:
+          httpGet:
+            path: "/healthz/leader-election"
+            port: "http-endpoint"
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 2
+          failureThreshold: 5
+      - name: "csi-resizer"
+        image: "gcr.io/k8s-staging-sig-storage/csi-resizer:v1.8.0"
+        args:
+        - "--csi-address=$(CSI_ENDPOINT)"
+        - "--leader-election"
+        - "--http-endpoint=:9808"
+        - "--timeout=600s"
+        - "--v=5"
+        env:
+        - name: "CSI_ENDPOINT"
+          value: "/var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
+        imagePullPolicy: "Always"
+        resources: {}
+        ports:
+        - containerPort: 9808
+          name: http-endpoint
+          protocol: TCP
+        livenessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /healthz/leader-election
+            port: http-endpoint
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+          periodSeconds: 20
+        volumeMounts:
+        - name: domain-socket
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+      - name: "csi-liveness-probe"
+        image: "registry.k8s.io/sig-storage/livenessprobe:v2.10.0"
+        imagePullPolicy: "Always"
+        args:
+        - "--csi-address=$(CSI_ENDPOINT)"
+        - "--probe-timeout=3s"
+        - "--health-port=9804"
+        - "--v=5"
+        env:
+        - name: "CSI_ENDPOINT"
+          value: "unix:///var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
+        volumeMounts:
+        - name: domain-socket
+          mountPath: /var/lib/csi/sockets/pluginproxy
+        resources: {}
+      - name: "iscsi-csi-ngxstorage-controller"
+        securityContext:
+          capabilities:
+            add: ["NET_RAW"]
+        image: "ngxstorage/iscsi-csi-ngxstorage:latest"
+        imagePullPolicy: "Always"
+        resources: {}
+        args:
+        - "--endpoint=$(CSI_ENDPOINT)"
+        - "--login=$(STORAGE_USERNAMES):$(STORAGE_PASSWORDS)"
+        - "--ip=$(STORAGE_IPS)"
+        - "--pool-name=$(STORAGE_POOLNAME)"
+        - "--portal-group=$(STORAGE_PORTALGRP)"
+        - "--nodeid=$(KUBE_NODE_NAME)"
+        - "--log=1"
+        env:
+        - name: "CSI_ENDPOINT"
+          value: "unix:///var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
+        - name: "STORAGE_USERNAMES"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: usernames
+        - name: "STORAGE_PASSWORDS"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: passwords
+        - name: "STORAGE_IPS"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: ips
+        - name: "STORAGE_POOLNAME"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: poolName
+        - name: "STORAGE_PORTALGRP"
+          valueFrom:
+            secretKeyRef:
+              name: ngxstorage-secret
+              key: portalGroupName
+        - name: "KUBE_NODE_NAME"
+          value: "controller"
+        volumeMounts:
+        - name: "domain-socket"
+          mountPath: "/var/lib/csi/sockets/pluginproxy"
+        - name: "log"
+          mountPath: "/host/etc"
+          mountPropagation: "HostToContainer"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - ps aux | grep -v grep | grep iscsi-csi-ngxstorage.sock
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 2
+          failureThreshold: 5
+      volumes:
+      - name: "domain-socket"
+        emptyDir: {}
+      - name: "log"
+        hostPath:
+          path: "/etc"
+          type: "Directory"

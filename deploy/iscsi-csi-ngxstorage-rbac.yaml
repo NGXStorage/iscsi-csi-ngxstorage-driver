@@ -1,0 +1,81 @@
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: iscsi.csi.ngxstorage.com
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: iscsi-csi-ngxstorage-service-account
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: iscsi-csi-ngxstorage-cluster-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - events
+  - secrets
+  - serviceaccounts
+  - serviceaccounts/token
+  - persistentvolumes
+  - persistentvolumeclaims
+  - persistentvolumeclaims/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - patch
+
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csinodes
+  - csinodeinfos
+  - storageclasses
+  - volumeattachments
+  - volumeattachments/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: iscsi-csi-ngxstorage-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: iscsi-csi-ngxstorage-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: iscsi-csi-ngxstorage-service-account
+  namespace: default
