@@ -79,6 +79,10 @@ Important notes:
 
 Volumes can be transferred across clusters. The exact steps are outlined in our [example](https://github.com/ngxstorage/iscsi-csi-ngxstorage-driver/tree/master/examples/pod-single-existing-volume).
 
+### Snapshot
+
+Volumes can be snapshotted. The exact steps are outlined in our [example](https://github.com/ngxstorage/iscsi-csi-ngxstorage-driver/tree/master/examples/snapshot).
+
 ## Contributing
 
 At NGX Storage we value and love our community! If you have any issues or would like to contribute, feel free to open an issue or send an e-mail [k8s@ngxstorage.com](mailto:k8s@ngxstorage.com).
@@ -106,7 +110,7 @@ NGX Storage Block Storage Driver tested on Ubuntu, Pardus and RHEL 9 hosts.
 
 #### Controller Mode
 
-- No spesific need
+- Snapshot custom rule installed on storage. [Installation](https://github.com/ngxstorage/iscsi-csi-ngxstorage-driver/tree/master/examples/snapshot/README.md#Preconditions)
 
 #### Node Mode
 

@@ -1,0 +1,6 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: iscsi-csi-ngxstorage-snapshot-class
+driver: iscsi.csi.ngxstorage.com
+deletionPolicy: Delete

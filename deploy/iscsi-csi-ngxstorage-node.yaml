@@ -27,7 +27,7 @@ spec:
         args:
         - "--csi-address=$(CSI_ENDPOINT_PATH)"
         - "--kubelet-registration-path=$(CSI_REGISTRATION_PATH)"
-        - "--timeout=600s"
+        - "--timeout=300s"
         - "--v=5"
         env:
         - name: "CSI_ENDPOINT_PATH"

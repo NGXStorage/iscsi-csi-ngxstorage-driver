@@ -21,6 +21,28 @@ spec:
       nodeSelector:
         kubernetes.io/os: "linux"
       containers:
+      - name: "csi-snapshot-controller"
+        image: "k8s.gcr.io/sig-storage/snapshot-controller:v6.2.1"
+        imagePullPolicy: "Always"
+        resources: {}
+        args:
+        - "--v=5"
+        - "--leader-election=true"
+      - name: "csi-snapshotter"
+        image: "k8s.gcr.io/sig-storage/csi-snapshotter:v6.2.1"
+        imagePullPolicy: "Always"
+        resources: {}
+        args:
+        - "--csi-address=$(CSI_ENDPOINT)"
+        - "--leader-election"
+        - "--timeout=300s"
+        - "--v=5"
+        env:
+        - name: "CSI_ENDPOINT"
+          value: "/var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
+        volumeMounts:
+        - name: "domain-socket"
+          mountPath: "/var/lib/csi/sockets/pluginproxy/"
       - name: "csi-provisioner"
         image: "registry.k8s.io/sig-storage/csi-provisioner:v3.5.0"
         imagePullPolicy: "Always"
@@ -28,8 +50,7 @@ spec:
         args:
         - "--csi-address=$(CSI_ENDPOINT)"
         - "--leader-election"
-        - "--http-endpoint=:9806"
-        - "--timeout=60s"
+        - "--timeout=300s"
         - "--v=5"
         env:
         - name: "CSI_ENDPOINT"
@@ -37,18 +58,6 @@ spec:
         volumeMounts:
         - name: domain-socket
           mountPath: /var/lib/csi/sockets/pluginproxy
-        ports:
-        - name: "http-endpoint"
-          containerPort: 9806
-          protocol: "TCP"
-        livenessProbe:
-          httpGet:
-            path: "/healthz/leader-election"
-            port: "http-endpoint"
-          initialDelaySeconds: 10
-          timeoutSeconds: 3
-          periodSeconds: 2
-          failureThreshold: 5
       - name: "csi-attacher"
         image: "registry.k8s.io/sig-storage/csi-attacher:v4.3.0"
         imagePullPolicy: "Always"
@@ -56,8 +65,7 @@ spec:
         args:
         - "--csi-address=$(CSI_ENDPOINT)"
         - "--leader-election"
-        - "--http-endpoint=:9807"
-        - "--timeout=600s"
+        - "--timeout=300s"
         - "--v=5"
         env:
         - name: MY_NAME
@@ -69,61 +77,21 @@ spec:
         volumeMounts:
         - name: "domain-socket"
           mountPath: "/var/lib/csi/sockets/pluginproxy"
-        ports:
-        - name: "http-endpoint"
-          containerPort: 9807
-          protocol: "TCP"
-        livenessProbe:
-          httpGet:
-            path: "/healthz/leader-election"
-            port: "http-endpoint"
-          initialDelaySeconds: 10
-          timeoutSeconds: 3
-          periodSeconds: 2
-          failureThreshold: 5
       - name: "csi-resizer"
         image: "gcr.io/k8s-staging-sig-storage/csi-resizer:v1.8.0"
+        imagePullPolicy: "Always"
+        resources: {}
         args:
         - "--csi-address=$(CSI_ENDPOINT)"
         - "--leader-election"
-        - "--http-endpoint=:9808"
-        - "--timeout=600s"
+        - "--timeout=300s"
         - "--v=5"
         env:
         - name: "CSI_ENDPOINT"
           value: "/var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
-        imagePullPolicy: "Always"
-        resources: {}
-        ports:
-        - containerPort: 9808
-          name: http-endpoint
-          protocol: TCP
-        livenessProbe:
-          failureThreshold: 1
-          httpGet:
-            path: /healthz/leader-election
-            port: http-endpoint
-          initialDelaySeconds: 10
-          timeoutSeconds: 10
-          periodSeconds: 20
         volumeMounts:
         - name: domain-socket
           mountPath: /var/lib/csi/sockets/pluginproxy/
-      - name: "csi-liveness-probe"
-        image: "registry.k8s.io/sig-storage/livenessprobe:v2.10.0"
-        imagePullPolicy: "Always"
-        args:
-        - "--csi-address=$(CSI_ENDPOINT)"
-        - "--probe-timeout=3s"
-        - "--health-port=9804"
-        - "--v=5"
-        env:
-        - name: "CSI_ENDPOINT"
-          value: "unix:///var/lib/csi/sockets/pluginproxy/iscsi-csi-ngxstorage.sock"
-        volumeMounts:
-        - name: domain-socket
-          mountPath: /var/lib/csi/sockets/pluginproxy
-        resources: {}
       - name: "iscsi-csi-ngxstorage-controller"
         securityContext:
           capabilities:
@@ -175,16 +143,6 @@ spec:
         - name: "log"
           mountPath: "/host/etc"
           mountPropagation: "HostToContainer"
-        livenessProbe:
-          exec:
-            command:
-            - /bin/bash
-            - -c
-            - ps aux | grep -v grep | grep iscsi-csi-ngxstorage.sock
-          initialDelaySeconds: 10
-          timeoutSeconds: 3
-          periodSeconds: 2
-          failureThreshold: 5
       volumes:
       - name: "domain-socket"
         emptyDir: {}

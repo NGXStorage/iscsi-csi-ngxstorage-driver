@@ -66,6 +66,23 @@ rules:
   - delete
   - watch
 
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshots
+  - volumesnapshotclasses
+  - volumesnapshots/status
+  - volumesnapshotcontents
+  - volumesnapshotcontents/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - patch
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
