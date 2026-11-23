@@ -1,0 +1,9 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: snapshot-restore-vs
+  namespace: default
+spec:
+  volumeSnapshotClassName: iscsi-snapshot-restore-vsc
+  source:
+    persistentVolumeClaimName: snapshot-restore-source-pvc

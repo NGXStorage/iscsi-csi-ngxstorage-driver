@@ -1,0 +1,39 @@
+# A representative matrix of LUN create parameters. Each StorageClass exercises
+# a distinct backend attribute combination; use them to smoke-test provisioning
+# and (with VAC) mutable-parameter changes.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: iscsi-blk-thin-dedup-comp
+provisioner: iscsi.csi.ngxstorage.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  blocksize: "128k"
+  thin_provision: "on"
+  deduplication: "on"
+  compression: "on"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: iscsi-blk-thin-io-seq
+provisioner: iscsi.csi.ngxstorage.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  blocksize: "64k"
+  thin_provision: "on"
+  io_type: "sequential"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: iscsi-blk-thick-qos64
+provisioner: iscsi.csi.ngxstorage.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  blocksize: "4k"
+  thin_provision: "off"
+  qos_priority: "64"

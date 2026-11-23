@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-existing-static-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: volume-existing-static
+    image: nginx
+    volumeMounts:
+    - name: volume-existing-static-pvc
+      mountPath: /data
+  volumes:
+  - name: volume-existing-static-pvc
+    persistentVolumeClaim:
+      claimName: volume-existing-static-pvc

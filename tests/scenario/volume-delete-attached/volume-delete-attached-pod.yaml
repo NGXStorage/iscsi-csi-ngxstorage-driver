@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-delete-attached-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: volume-delete-attached
+    image: nginx
+    volumeMounts:
+    - name: volume-delete-attached-pvc
+      mountPath: /data
+  volumes:
+  - name: volume-delete-attached-pvc
+    persistentVolumeClaim:
+      claimName: volume-delete-attached-pvc
+---
+# Senaryo (elle doğrulanır):
+# 1. Bu manifesti uygula -> PVC Bound, Pod Running.
+# 2. Pod volume kullanırken PVC'yi silmeyi dene:
+#      oc delete pvc volume-delete-attached-pvc
+#    Beklenen: PVC Terminating'de takılır (finalizer, volume hâlâ kullanımda).
+# 3. Pod'u sil -> PVC gerçekten silinir, PV Delete reclaim ile LUN temizlenir.
+# 4. Kalan PV'leri kontrol et: oc get pv | grep volume-delete-attached (boş olmalı).

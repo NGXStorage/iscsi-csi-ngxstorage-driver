@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-attach-cross-node-pod-a
+  namespace: default
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: __NODE_A__
+  containers:
+  - name: cross-node-a
+    image: nginx
+    command: ["/bin/sh", "-c"]
+    args:
+    - >
+      dd if=/dev/urandom of=/data/marker bs=1M count=128 status=none;
+      sha256sum /data/marker > /data/marker.sha256;
+      sync;
+      tail -f /dev/null
+    volumeMounts:
+    - name: vol
+      mountPath: /data
+  volumes:
+  - name: vol
+    persistentVolumeClaim:
+      claimName: volume-attach-cross-node-pvc

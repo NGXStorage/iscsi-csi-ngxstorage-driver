@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: benchmark-kbench-iscsi-sc
+provisioner: iscsi.csi.ngxstorage.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  blocksize: "128k"
+  thin_provision: "on"
+  deduplication: "off"
+  compression: "off"
+  io_type: "sequential"
+  qos_priority: "4"
+  mount_permissions: "0777"

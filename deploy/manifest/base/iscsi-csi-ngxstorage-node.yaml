@@ -1,0 +1,187 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: iscsi-csi-ngxstorage-node
+  labels:
+    app.kubernetes.io/name: iscsi-csi-ngxstorage
+    app.kubernetes.io/component: node
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iscsi-csi-ngxstorage
+      app.kubernetes.io/component: node
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iscsi-csi-ngxstorage
+        app.kubernetes.io/component: node
+    spec:
+      serviceAccountName: iscsi-csi-ngxstorage-node
+      automountServiceAccountToken: false
+      priorityClassName: system-node-critical
+      hostPID: true
+      hostNetwork: true
+      hostIPC: true
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ""
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: node-driver-registrar
+          image: quay.io/ngxstorage/csi-sidecars/csi-node-driver-registrar@sha256:f9de845b170155199f2a2a3f9531cf13d78e31235e9db6b6582a8b0db0a50dad
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/iscsi.csi.ngxstorage.com/csi.sock
+            - --v=2
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: liveness-probe
+          image: quay.io/ngxstorage/csi-sidecars/livenessprobe@sha256:06da0d5b8908072f2e4522692aee8dc119fba7247a9658497e1153992cd777e9
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9812
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: iscsi-csi-ngxstorage
+          image: quay.io/ngxstorage/iscsi-csi-ngxstorage@sha256:0988d15112dabb97f713e875d77ab62c98ae7a4d40aaa2544a057cf349fc1c87
+          imagePullPolicy: Always
+          args:
+            - --role=node
+            - --endpoint=$(CSI_ENDPOINT)
+            - --ip=$(STORAGE_IPS)
+            - --pool-name=$(POOL_NAME)
+            - --portal-group=$(PORTAL_GROUP)
+            - --api-key=$(API_KEY)
+            - --nodeid=$(KUBE_NODE_NAME)
+            - --log=info
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NGX_COORDINATION_LEASE_PREFIX
+              value: "iscsi-csi-ngxstorage"
+            - name: NGX_COORDINATION_SHARD_COUNT
+              value: "128"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: STORAGE_IPS
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: storage-ips
+            - name: POOL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: pool-name
+            - name: PORTAL_GROUP
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: portal-group
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: api-key
+            - name: NGXSTORAGE_CSI_LOG_DIR
+              value: "/host/var/log/ngxstorage/iscsi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9812
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: true
+            capabilities:
+              add: ["SYS_ADMIN", "SYS_CHROOT"]
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+            - name: kube-api-access-ngxstorage
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: Bidirectional
+            - name: host-root
+              mountPath: /host
+              mountPropagation: Bidirectional
+            - name: host-dev
+              mountPath: /dev
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/iscsi.csi.ngxstorage.com
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: kube-api-access-ngxstorage
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.namespace

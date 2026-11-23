@@ -1,0 +1,21 @@
+# VolumeAttributesClass (beta since Kubernetes 1.31; GA in 1.34).
+# Modifying the class a PVC references triggers CSI ControllerModifyVolume.
+# Mutable LUN parameters: deduplication, compression, thin_provision,
+# flash_cache, dram_cache, io_type, qos_priority.
+apiVersion: storage.k8s.io/v1
+kind: VolumeAttributesClass
+metadata:
+  name: ngx-mutable
+driverName: iscsi.csi.ngxstorage.com
+parameters:
+  deduplication: "on"
+  compression: "on"
+---
+apiVersion: storage.k8s.io/v1
+kind: VolumeAttributesClass
+metadata:
+  name: ngx-default
+driverName: iscsi.csi.ngxstorage.com
+parameters:
+  deduplication: "off"
+  compression: "off"

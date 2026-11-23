@@ -1,0 +1,16 @@
+# Kubernetes external storage E2E DriverDefinition template.
+# tests/external-e2e/run.sh substitutes __STORAGE_CLASS_FILE__ with a temporary copy of
+# the repository StorageClass manifest before invoking e2e.test.
+StorageClass:
+  FromFile: __STORAGE_CLASS_FILE__
+SnapshotClass:
+  FromName: true
+DriverInfo:
+  Name: iscsi.csi.ngxstorage.com
+  SupportedFsType: {ext4}
+  Capabilities:
+    persistence: true
+    exec: true
+    block: true
+    snapshotDataSource: true
+    controllerExpansion: true

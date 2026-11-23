@@ -1,0 +1,9 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: snapshot-expand-restore-snapshot
+  namespace: default
+spec:
+  volumeSnapshotClassName: snapshot-expand-restore-vsc
+  source:
+    persistentVolumeClaimName: snapshot-expand-restore-source-pvc

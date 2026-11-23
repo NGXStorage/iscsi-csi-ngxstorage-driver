@@ -1,0 +1,19 @@
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: iscsi-csi-ngxstorage-node-scc
+allowHostDirVolumePlugin: true
+allowHostIPC: true
+allowHostNetwork: true
+allowHostPID: true
+allowHostPorts: false
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: true
+allowedCapabilities: [SYS_ADMIN, SYS_CHROOT]
+fsGroup: {type: RunAsAny}
+runAsUser: {type: RunAsAny}
+seLinuxContext: {type: RunAsAny}
+supplementalGroups: {type: RunAsAny}
+users: []
+groups: []
+volumes: [hostPath, downwardAPI, projected, emptyDir]

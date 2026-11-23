@@ -1,0 +1,22 @@
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: benchmark-kbench-scc
+allowPrivilegeEscalation: false
+allowHostNetwork: false
+allowHostPorts: false
+allowHostIPC: false
+allowHostPID: false
+readOnlyRootFilesystem: false
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+seccompProfile:
+  type: Any
+supplementalGroups:
+  type: RunAsAny
+users:
+- system:serviceaccount:benchmark-kbench-iscsi:benchmark-kbench

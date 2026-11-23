@@ -1,0 +1,21 @@
+# Benchmark with fio from inside the pod:
+#   kubectl exec -it performance-pod -- sh -c "apt-get update && apt-get install -y fio && fio --rw=read --ioengine=libaio --bs=128k --iodepth=128 --size=1g --runtime=60 --time_based --filename=/data/fio --group_reporting"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: performance-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: performance
+    image: ubuntu:22.04
+    command: ["/bin/sh", "-c", "set -eu; apt-get update -qq; apt-get install -y -qq fio; command -v fio; exec sleep infinity"]
+    volumeMounts:
+    - name: performance-pvc
+      mountPath: /data
+  volumes:
+  - name: performance-pvc
+    persistentVolumeClaim:
+      claimName: performance-pvc

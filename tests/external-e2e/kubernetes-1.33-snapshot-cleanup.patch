@@ -1,0 +1,47 @@
+--- a/test/e2e/storage/testsuites/provisioning.go
++++ b/test/e2e/storage/testsuites/provisioning.go
+@@ -493,6 +493,12 @@
+ 		createdClaims := []*v1.PersistentVolumeClaim{c}
+ 		pod, err := e2epod.CreatePod(ctx, l.testCase.Client, f.Namespace.Name, nil, createdClaims, f.NamespacePodSecurityLevel, "")
+ 		framework.ExpectNoError(err, "Failed to create pod: %v", err)
++		ginkgo.DeferCleanup(func(ctx context.Context) {
++			err := e2epod.DeletePodWithWait(ctx, l.cs, pod)
++			if !apierrors.IsNotFound(err) {
++				framework.ExpectNoError(err)
++			}
++		})
+ 
+ 		// Mount path should not be empty.
+ 		mountpath := findVolumeMountPath(pod, c)
+@@ -515,9 +521,31 @@
+ 		// Create a new claim and a pod that will use the new PVC.
+ 		c2, err := l.testCase.Client.CoreV1().PersistentVolumeClaims(pvc2.Namespace).Create(ctx, pvc2, metav1.CreateOptions{})
+ 		framework.ExpectNoError(err, "Failed to create pvc: %v", err)
++		// Delete the restored consumer before its source snapshot cleanup.
++		ginkgo.DeferCleanup(func(ctx context.Context) {
++			claim, err := l.cs.CoreV1().PersistentVolumeClaims(c2.Namespace).Get(ctx, c2.Name, metav1.GetOptions{})
++			if apierrors.IsNotFound(err) {
++				return
++			}
++			framework.ExpectNoError(err)
++			gomega.Expect(claim.UID).To(gomega.Equal(c2.UID))
++			err = l.cs.CoreV1().PersistentVolumeClaims(c2.Namespace).Delete(ctx, c2.Name, metav1.DeleteOptions{})
++			if !apierrors.IsNotFound(err) {
++				framework.ExpectNoError(err)
++			}
++			if claim.Spec.VolumeName != "" {
++				framework.ExpectNoError(e2epv.WaitForPersistentVolumeDeleted(ctx, l.cs, claim.Spec.VolumeName, framework.Poll, f.Timeouts.PVDelete))
++			}
++		})
+ 		createdClaims2 := []*v1.PersistentVolumeClaim{c2}
+ 		pod2, err := e2epod.CreatePod(ctx, l.testCase.Client, f.Namespace.Name, nil, createdClaims2, f.NamespacePodSecurityLevel, "")
+ 		framework.ExpectNoError(err, "Failed to create pod: %v", err)
++		ginkgo.DeferCleanup(func(ctx context.Context) {
++			err := e2epod.DeletePodWithWait(ctx, l.cs, pod2)
++			if !apierrors.IsNotFound(err) {
++				framework.ExpectNoError(err)
++			}
++		})
+ 
+ 		// Mount path should not be empty.
+ 		mountpath2 := findVolumeMountPath(pod2, c2)

@@ -1,0 +1,72 @@
+stages:
+  - lint
+  - test
+  - build
+  - sanity
+
+variables:
+  GO_VERSION: "1.27.4"
+
+default:
+  image: golang:${GO_VERSION}
+  tags:
+    - linux
+    - docker
+    - shared
+  cache:
+    key: go-mod-{{ checksum "go.sum" }}
+    paths:
+      - .gocache/mod
+  before_script:
+    - go env -w GOMODCACHE="$CI_PROJECT_DIR/.gocache/mod" GOCACHE="$CI_PROJECT_DIR/.gocache"
+
+lint:
+  stage: lint
+  script:
+    - test -z "$(gofmt -l pkg cmd)" || (echo "gofmt düzeltmesi gerekiyor:" && gofmt -l pkg cmd && exit 1)
+    - go vet ./...
+
+test:
+  stage: test
+  script:
+    - go test -count=1 ./...
+
+build:
+  stage: build
+  script:
+    # SHARED csi-sanity: one binary for every driver, built from the pinned
+    # fork commit (clean clone -> verify HEAD==SHA -> go build -mod=vendor).
+    - bash tests/sanity/build-shared-sanity.sh build/shared-sanity/csi-sanity
+    - go build -o cmd/csi-driver/iscsi-csi-ngxstorage-driver ./cmd/csi-driver
+  artifacts:
+    paths:
+      - build/shared-sanity/csi-sanity
+      - cmd/csi-driver/iscsi-csi-ngxstorage-driver
+    expire_in: 1 week
+
+sanity:
+  stage: sanity
+  # Live sanity touches the lab/array and requires an iSCSI-capable runner
+  # (iscsiadm, multipathd, reachable portals). It must never run automatically
+  # on a source push: explicit manual grant only. Offline lint/test/build above
+  # are the normal automatic gate.
+  when: manual
+  allow_failure: true
+  timeout: 90 minutes
+  before_script:
+    - command -v sudo >/dev/null 2>&1 || export SUDO=env
+    - test -n "$STORAGE_API_KEY" || (echo "STORAGE_API_KEY is required" && exit 1)
+    - test -n "$STORAGE_IPS" || (echo "STORAGE_IPS is required" && exit 1)
+    - test -n "$STORAGE_PORTAL_GROUP" || (echo "STORAGE_PORTAL_GROUP is required" && exit 1)
+    - command -v iscsiadm >/dev/null 2>&1 || (echo "iscsiadm is required on the runner" && exit 1)
+    - command -v multipath >/dev/null 2>&1 || (echo "multipath tools are required on the runner" && exit 1)
+  script:
+    - bash tests/run-all-tests.sh sanity local --allow-live
+  after_script:
+    - ls -la tests/sanity/logs/ 2>/dev/null || true
+  artifacts:
+    when: always
+    paths:
+      - tests/sanity/logs/
+      - test-sanity-results_*.json
+    expire_in: 2 weeks

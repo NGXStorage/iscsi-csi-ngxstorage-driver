@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-attach-multipath-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: volume-attach-multipath
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: volume-attach-multipath-pvc
+      mountPath: /data
+      readOnly: false
+
+  volumes:
+  - name: volume-attach-multipath-pvc
+    persistentVolumeClaim:
+      claimName: volume-attach-multipath-pvc

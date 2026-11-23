@@ -1,0 +1,45 @@
+# CSI node plugins run on worker nodes only.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: benchmark-kbench-iscsi
+  namespace: benchmark-kbench-iscsi
+spec:
+  serviceAccountName: benchmark-kbench
+  securityContext:
+    runAsUser: 0
+    seccompProfile:
+      type: RuntimeDefault
+    fsGroup: 1000830000
+  containers:
+  - name: benchmark-kbench
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    image: longhornio/kbench:main-head
+    imagePullPolicy: Always
+    env:
+    - name: MODE
+      value: full
+    - name: FILE_NAME
+      value: /volume/test
+    - name: SIZE
+      value: 1G
+    - name: CPU_IDLE_PROF
+      value: disabled
+    volumeMounts:
+    - name: vol
+      mountPath: /volume/
+    - name: temp-storage
+      mountPath: /temp
+  restartPolicy: Never
+  volumes:
+  - name: vol
+    persistentVolumeClaim:
+      claimName: benchmark-kbench-iscsi-pvc
+  - name: temp-storage
+    emptyDir: {}
+  nodeSelector:
+    node-role.kubernetes.io/worker: ''

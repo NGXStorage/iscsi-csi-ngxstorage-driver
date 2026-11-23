@@ -1,0 +1,9 @@
+# Only runtime inputs enter the Docker context; source credentials/logs stay out.
+**
+!Dockerfile
+!cmd/
+!cmd/entrypoint.sh
+!cmd/chroot-host-wrapper.sh
+!cmd/csi-driver/
+!cmd/csi-driver/*-csi-ngxstorage-driver
+!LICENSE

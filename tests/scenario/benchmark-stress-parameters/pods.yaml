@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iscsi-stress-a
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: stress
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: pvc
+      mountPath: /data
+  volumes:
+  - name: pvc
+    persistentVolumeClaim:
+      claimName: iscsi-stress-a
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iscsi-stress-b
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: stress
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: pvc
+      mountPath: /data
+  volumes:
+  - name: pvc
+    persistentVolumeClaim:
+      claimName: iscsi-stress-b
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iscsi-stress-c
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: stress
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: pvc
+      mountPath: /data
+  volumes:
+  - name: pvc
+    persistentVolumeClaim:
+      claimName: iscsi-stress-c

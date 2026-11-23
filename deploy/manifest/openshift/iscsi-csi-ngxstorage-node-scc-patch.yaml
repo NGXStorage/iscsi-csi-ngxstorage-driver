@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: iscsi-csi-ngxstorage-node
+spec:
+  template:
+    metadata:
+      annotations:
+        openshift.io/required-scc: iscsi-csi-ngxstorage-node-scc

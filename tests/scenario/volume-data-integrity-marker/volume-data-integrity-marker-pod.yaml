@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-data-integrity-marker-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: volume-data-integrity-marker
+    image: nginx
+    command: ["/bin/sh", "-c"]
+    args:
+    - >
+      echo "writing checksummed data";
+      dd if=/dev/urandom of=/data/marker bs=1M count=512 status=none;
+      sha256sum /data/marker > /data/marker.sha256;
+      sync;
+      echo "data written:";
+      cat /data/marker.sha256;
+      tail -f /dev/null
+    volumeMounts:
+    - name: volume-data-integrity-marker-pvc
+      mountPath: /data
+  volumes:
+  - name: volume-data-integrity-marker-pvc
+    persistentVolumeClaim:
+      claimName: volume-data-integrity-marker-pvc

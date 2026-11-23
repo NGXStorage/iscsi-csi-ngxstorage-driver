@@ -1,0 +1,6 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: controller-restart-leader-election-iscsi-vsc
+driver: iscsi.csi.ngxstorage.com
+deletionPolicy: Delete

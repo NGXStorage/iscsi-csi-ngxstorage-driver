@@ -1,0 +1,185 @@
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: iscsi.csi.ngxstorage.com
+spec:
+  attachRequired: true
+  podInfoOnMount: false
+  fsGroupPolicy: File
+  volumeLifecycleModes:
+    - Persistent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iscsi-csi-ngxstorage-controller
+  labels:
+    app.kubernetes.io/name: iscsi-csi-ngxstorage
+    app.kubernetes.io/component: controller
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iscsi-csi-ngxstorage
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iscsi-csi-ngxstorage
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: iscsi-csi-ngxstorage-controller
+      priorityClassName: system-cluster-critical
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: CriticalAddonsOnly
+          operator: Exists
+      containers:
+        - name: external-provisioner
+          image: quay.io/ngxstorage/csi-sidecars/csi-provisioner@sha256:a4b0b1a37605b7b04a293e136edf7006ec1786a8eb3f4e5a945f81d667dcc371
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+            - --leader-election-namespace=$(POD_NAMESPACE)
+            - --timeout=300s
+            - --v=2
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: external-attacher
+          image: quay.io/ngxstorage/csi-sidecars/csi-attacher@sha256:b9dc9a714a484ccdeeb6f86d88d4db9b7a5ecfc5a55da6db3a60bb3fa33c278a
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+            - --leader-election-namespace=$(POD_NAMESPACE)
+            - --timeout=300s
+            - --v=2
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: external-resizer
+          image: quay.io/ngxstorage/csi-sidecars/csi-resizer@sha256:ea1d25e23479000c7e8eeb92d827df66258df4e482ca054c5e7ce3fc0f5c41a5
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+            - --leader-election-namespace=$(POD_NAMESPACE)
+            - --timeout=300s
+            - --v=2
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: external-snapshotter
+          image: quay.io/ngxstorage/csi-sidecars/csi-snapshotter@sha256:42af0929bcd60a43499825c078a60ff0534e08af8fbeb283aa391be40feb9f3e
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+            - --leader-election-namespace=$(POD_NAMESPACE)
+            - --timeout=300s
+            - --v=2
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: liveness-probe
+          image: quay.io/ngxstorage/csi-sidecars/livenessprobe@sha256:06da0d5b8908072f2e4522692aee8dc119fba7247a9658497e1153992cd777e9
+          imagePullPolicy: Always
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9808
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: iscsi-csi-ngxstorage
+          image: quay.io/ngxstorage/iscsi-csi-ngxstorage@sha256:0988d15112dabb97f713e875d77ab62c98ae7a4d40aaa2544a057cf349fc1c87
+          imagePullPolicy: Always
+          args:
+            - --role=controller
+            - --endpoint=$(CSI_ENDPOINT)
+            - --ip=$(STORAGE_IPS)
+            - --pool-name=$(POOL_NAME)
+            - --portal-group=$(PORTAL_GROUP)
+            - --api-key=$(API_KEY)
+            - --log=info
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: NGX_COORDINATION_LEASE_PREFIX
+              value: "iscsi-csi-ngxstorage"
+            - name: NGX_COORDINATION_SHARD_COUNT
+              value: "128"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: STORAGE_IPS
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: storage-ips
+            - name: POOL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: pool-name
+            - name: PORTAL_GROUP
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: portal-group
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: iscsi-csi-ngxstorage-secret
+                  key: api-key
+          ports:
+            - containerPort: 9808
+              protocol: TCP
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+      volumes:
+        - name: socket-dir
+          emptyDir: {}

@@ -1,0 +1,15 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: performance-sc
+provisioner: iscsi.csi.ngxstorage.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  blocksize: "128k" # 4k, 8k, 16k, 32k, 64k, 128k, 256k, 512k, 1024k
+  thin_provision: "on" # "on", "off"
+  deduplication: "off" # "on", "off"
+  compression: "off" # "on", "off"
+  io_type: "sequential" # "transactional", "sequential"
+  qos_priority: "4" # 4, 8, 16, 32, 64, 128

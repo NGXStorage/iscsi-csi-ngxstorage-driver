@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: iscsi-reboot-pvc}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 1Gi}}
+  storageClassName: iscsi-reboot-sc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: iscsi-volume-recovery-host-reboot}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  revisionHistoryLimit: 0
+  selector: {matchLabels: {app: iscsi-volume-recovery-host-reboot}}
+  template:
+    metadata: {labels: {app: iscsi-volume-recovery-host-reboot}}
+    spec:
+      tolerations:
+      - {key: node.kubernetes.io/not-ready, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
+      - {key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
+      containers:
+      - name: nginx
+        image: nginx
+        command: ["/bin/sh", "-c"]
+        args: ["test -f /data/marker.txt || printf 'iscsi-reboot\\n' >/data/marker.txt; sha256sum /data/marker.txt >/data/marker.sha256; tail -f /dev/null"]
+        volumeMounts: [{name: iscsi, mountPath: /data}]
+      volumes:
+      - {name: iscsi, persistentVolumeClaim: {claimName: iscsi-reboot-pvc}}

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: filesystem-xfs-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: filesystem-xfs
+    image: nginx
+    volumeMounts:
+    - name: filesystem-xfs-pvc
+      mountPath: /data
+      readOnly: false
+  volumes:
+  - name: filesystem-xfs-pvc
+    persistentVolumeClaim:
+      claimName: filesystem-xfs-pvc

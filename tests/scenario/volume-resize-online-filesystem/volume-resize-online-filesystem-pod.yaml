@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: resize-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: resize
+    image: nginx
+
+    volumeMounts:
+    - name: resize-pvc
+      mountPath: /data
+      readOnly: false
+
+  volumes:
+  - name: resize-pvc
+    persistentVolumeClaim:
+      claimName: resize-pvc

@@ -1,0 +1,50 @@
+# Two pods on the SAME node write to one volume (SINGLE_NODE_MULTI_WRITER).
+# The driver advertises SINGLE_NODE_MULTI_WRITER; both pods must be scheduled
+# to the same worker (the volume is a single-node block device).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-access-multiwriter-pod-a
+  namespace: default
+spec:
+  nodeName: REPLACE_WITH_WORKER_NODE
+  # SINGLE_NODE_MULTI_WRITER pods share one filesystem; the kubelet relabels
+  # the shared mount with the last pod's MCS, breaking earlier pods. Pinning
+  # an identical explicit SELinux level keeps both pods matched (OpenShift).
+  securityContext:
+    seLinuxOptions: {user: system_u, role: system_r, type: container_t, level: s0:c100,c200}
+  containers:
+  - name: w-a
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: pvc
+      mountPath: /data
+  volumes:
+  - name: pvc
+    persistentVolumeClaim:
+      claimName: volume-access-multiwriter-pvc
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-access-multiwriter-pod-b
+  namespace: default
+spec:
+  nodeName: REPLACE_WITH_WORKER_NODE
+  # SINGLE_NODE_MULTI_WRITER pods share one filesystem; the kubelet relabels
+  # the shared mount with the last pod's MCS, breaking earlier pods. Pinning
+  # an identical explicit SELinux level keeps both pods matched (OpenShift).
+  securityContext:
+    seLinuxOptions: {user: system_u, role: system_r, type: container_t, level: s0:c100,c200}
+  containers:
+  - name: w-b
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: pvc
+      mountPath: /data
+  volumes:
+  - name: pvc
+    persistentVolumeClaim:
+      claimName: volume-access-multiwriter-pvc

@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-raw-block-device-extend-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: volume-raw-block-device-extend
+    image: nginx
+    command: ["/bin/sh", "-c"]
+    args:
+    - >
+      echo "block device:"; lsblk /dev/blockdata;
+      blockdev --getsize64 /dev/blockdata;
+      dd if=/dev/zero of=/dev/blockdata bs=1M count=512 status=none;
+      sync;
+      echo "written 512M to raw block";
+      tail -f /dev/null
+    volumeDevices:
+    - name: volume-raw-block-device-extend-pvc
+      devicePath: /dev/blockdata
+  volumes:
+  - name: volume-raw-block-device-extend-pvc
+    persistentVolumeClaim:
+      claimName: volume-raw-block-device-extend-pvc

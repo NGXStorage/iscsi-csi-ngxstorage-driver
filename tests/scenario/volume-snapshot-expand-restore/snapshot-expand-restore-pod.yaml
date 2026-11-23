@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: snapshot-expand-restore-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: restored
+    image: nginx
+    command: ["/bin/sh", "-c"]
+    args:
+    - >
+      echo "restored volume contents:";
+      ls -la /data;
+      sha256sum /data/marker 2>/dev/null || echo "marker yok (restore öncesi snapshot'ta yoksa beklenir)";
+      df -h /data;
+      tail -f /dev/null
+    volumeMounts:
+    - name: restored
+      mountPath: /data
+  volumes:
+  - name: restored
+    persistentVolumeClaim:
+      claimName: snapshot-expand-restore-pvc

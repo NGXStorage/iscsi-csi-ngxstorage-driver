@@ -1,0 +1,33 @@
+# Binary
+/csi-sanity
+cmd/csi-driver/iscsi-csi-ngxstorage-driver
+*.exe
+*.out
+/bin/
+/dist/
+/.env
+/.env.*
+!/.env.example
+
+# Generated test tools and build artifacts
+/tests/tools/bin/
+/build/artifacts/
+# SHARED csi-sanity binary, built from the pinned fork commit (not a local copy)
+/build/shared-sanity/
+*.test
+__pycache__/
+*.py[cod]
+
+# Runtime logs and scenario evidence remain local.
+logs/
+*.log
+*.log.*
+
+# Local sanity configuration may contain credentials.
+/tests/sanity/*/config.env
+/tests/sanity/*/config.env.*
+!/tests/sanity/*/config.env.example
+
+# Scenario run results are evidence, not source.
+result.md
+/tests/tools/sanity-proxy/csi-sanity-proxy

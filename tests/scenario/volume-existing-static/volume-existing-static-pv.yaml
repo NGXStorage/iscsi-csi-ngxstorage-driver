@@ -1,0 +1,18 @@
+# Import a LUN that already exists on the NGX Storage Array.
+# volumeHandle = <driver-name>.<backend LUN id>. Replace the placeholder LUN
+# id below with the actual backend LUN id (e.g. from the NGX Storage UI).
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: volume-existing-static-pv
+  annotations:
+    pv.kubernetes.io/provisioned-by: iscsi.csi.ngxstorage.com
+spec:
+  storageClassName: volume-existing-static-sc
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  csi:
+    driver: iscsi.csi.ngxstorage.com
+    volumeHandle: iscsi.csi.ngxstorage.com.<LUN-ID>

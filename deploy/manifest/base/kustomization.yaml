@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- iscsi-csi-ngxstorage-rbac.yaml
+- iscsi-csi-ngxstorage-coordination.yaml
+- iscsi-csi-ngxstorage-controller.yaml
+- iscsi-csi-ngxstorage-controller-health-service.yaml
+- iscsi-csi-ngxstorage-node.yaml
+- iscsi-csi-ngxstorage-class.yaml
+- iscsi-csi-ngxstorage-snapshotclass.yaml
+patches:
+- path: iscsi-csi-ngxstorage-controller-security-patch.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: iscsi-csi-ngxstorage-controller

@@ -1,0 +1,18 @@
+# Restore the snapshot into a new volume.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: snapshot-restore-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: iscsi-snapshot-restore-sc
+  dataSource:
+    name: snapshot-restore-vs
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io

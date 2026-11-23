@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-access-readonly-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: volume-access-readonly
+    image: nginx
+    volumeMounts:
+    - name: volume-access-readonly-pvc
+      mountPath: /data
+      readOnly: true
+  volumes:
+  - name: volume-access-readonly-pvc
+    persistentVolumeClaim:
+      claimName: volume-access-readonly-pvc
+      readOnly: true

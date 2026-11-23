@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-attach-cross-node-pod-b
+  namespace: default
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: __NODE_B__
+  containers:
+  - name: cross-node-b
+    image: nginx
+    command: ["/bin/sh", "-c"]
+    args:
+    - >
+      echo "verifying checksum on other node:";
+      sha256sum -c /data/marker.sha256;
+      cat /data/marker.sha256;
+      tail -f /dev/null
+    volumeMounts:
+    - name: vol
+      mountPath: /data
+  volumes:
+  - name: vol
+    persistentVolumeClaim:
+      claimName: volume-attach-cross-node-pvc
+---
+# Senaryo (elle doğrulanır):
+# 1. sc + pvc + pod-a uygula (worker0'da). Pod-a veri yazar, checksum'ı kaydeder.
+# 2. pod-a'yı sil (volume worker0'dan detach olur).
+# 3. pod-b'yi uygula (worker1'de). Beklenen: aynı PVC worker1'e re-attach olur,
+#    sha256sum -c geçer -> veri node değişiminde korunur.

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: workload-statefulset
+  namespace: default
+spec:
+  serviceName: workload-statefulset
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
+    whenScaled: Delete
+  replicas: 2
+  selector:
+    matchLabels:
+      app: workload-statefulset
+  template:
+    metadata:
+      labels:
+        app: workload-statefulset
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/worker: ""
+      containers:
+      - name: workload-statefulset
+        image: busybox:1.36.1
+        command: ["/bin/sh", "-c"]
+        args:
+        - >-
+          printf '%s\n' "$HOSTNAME" > /data/pod-marker;
+          sync;
+          exec sleep 3600
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: workload-statefulset
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      volumeMode: Filesystem
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: workload-statefulset-sc

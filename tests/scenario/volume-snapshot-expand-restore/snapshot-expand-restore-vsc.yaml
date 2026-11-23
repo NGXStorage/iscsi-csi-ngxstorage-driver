@@ -1,0 +1,6 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: snapshot-expand-restore-vsc
+driver: iscsi.csi.ngxstorage.com
+deletionPolicy: Delete

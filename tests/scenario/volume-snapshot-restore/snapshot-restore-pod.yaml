@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: snapshot-restore-pod
+  namespace: default
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  containers:
+  - name: restore
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: restore
+      mountPath: /data
+  volumes:
+  - name: restore
+    persistentVolumeClaim:
+      claimName: snapshot-restore-pvc
